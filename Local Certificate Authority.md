@@ -2,6 +2,7 @@
 * [Overview](#overview)
 * [Assumptions/Notices](#assumptionsnotices)
 * [Environment Setup](#environment-setup)
+* [Create Local CA](#create-local-ca)
 
 ### Overview
 
@@ -33,8 +34,7 @@
         - Keep the process as simple as possible (I do a lot as root)
         - Provide enough information and detail so you can follow along 
         - Help you on your home lab journey by enabling foundational services that will provide benefits elsewhere
-        - 
-    
+        -     
 
 
 ### Environment Setup
@@ -61,4 +61,35 @@
         - It's also beneficial if you need to visually compare files/output
     You will need to make sure SCP is installed to transfer files to different machines/containers/vms
 
+
+### Create Local CA
+
+    Log into the container and navigate to the /etc directory
+        Note: If you are not logged in as root, you may need to prepend sudo to commands
+    
+    Create a folder structure to hold the various files needed in the process
+        - homelabCA
+        - homelabCA/certs
+        - homelabCA/private
+        - homelabCA/crl
+        - homelabCA/newcerts
+        - homelabCA/csr
+        This folder structure can be created with one command: mkdir -p /etc/homelabCA/{certs,private,crl,newcerts,csr}
+        Note: If you have tree installed, execute tree h* to verify that the directory structure has been created
+
+    Change into the homelabCA directory
+        Note: The private folder will store the CA private key.  chmod 700 /etc/homelabCA/private to restrict access to owner
+
+    Copy the default openssl.cnf file to the homelabCA directory:# cp /etc/ssl/openssl.cnf /etc/homelabCA/
+    Create a backup of the config file:# cp openssl.cnf openssl.cnf.bkup
+    Edit the openssl.cnf file in nano (or editor of your choice)
+     Note: You can use tmux to create two windows in the terminal split horizontally to view the backup and current file at the same time.  Helpful to verify or undo changes made by mistake
+      # tmux
+      # ctrl-b + " (to split horizontally)
+        - Navigate to the [CA_default] section
+        - Modify the dir line: dir = /etc/homelabCA
+        - Uncomment the unique_subject line
+        - Modify the certificate line: certificate = $dir/homelabRootCA.pem 
+        
+    
 

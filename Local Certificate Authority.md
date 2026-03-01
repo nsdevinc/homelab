@@ -60,6 +60,10 @@
     I installed Tmux to allow multiple screens so I could work in more than one directory at a time
         - It's also beneficial if you need to visually compare files/output
     You will need to make sure SCP is installed to transfer files to different machines/containers/vms
+    Verify that ca-certificates has been installed
+        - # apt-get install ca-certificates
+    Install p11-kit to provide the trust command
+        - # apt install p11-kit
 
 
 ### Create Local CA
@@ -89,7 +93,56 @@
         - Navigate to the [CA_default] section
         - Modify the dir line: dir = /etc/homelabCA
         - Uncomment the unique_subject line
-        - Modify the certificate line: certificate = $dir/homelabRootCA.pem 
-        
+        - Modify the certificate line: certificate = $dir/homelabCACert.pem 
+        - Modify the private_key line: private_key = $dir/private/homelabCAKey.pem
+        - Modify the default_days line: default_days = 3650  (sets the expiration to 10 years, you can make it less)
+        - Navigate to the [ req_distinguished_name ] section
+        - set countryName_default = US
+        - set stateOrProvinceName_default = <your state/province>
+        - add line: localityName_default = <your locality>
+        - set O.organizationName_default = Homelab
+        - set organizationalUnitName_default = IT Department
+        - Save the file and exit
+
+    Initialize the CA database
+        - # echo 01 | tee /etc/homelabCA/serial
+        - # touch /etc/homelabCA/index.txt  
+
+    Create root CA key (this name needs to match what's in the the openssl.cnf file)
+        - # openssl genrsa -aes256 -out /etc/homelabCA/private/homelabCAKey.pem 4096
+        Note: you will be prompted for a passphrase, you must enter one or creation will fail. Make it easy to remember like: homelabca
+        - if you ls ./private/ you should see the file listed.
+
+    Create the root CA certificate (should matche what's in the openssl.cnf file)
+        - # openssl req -new -x509 -sha256 -days 3650 -config /etc/homelabCA/openssl.cnf -key /etc/homelabCA/private/homelabCAKey.pem -out /etc/homelabCA/homelabCACert.pem
+        Note: You can add a common name at the end of the process: Homelab Root CA and have it included in the certificate.
+        - You should be prompted for the passphrase and then details.  The defaults should be what you entered in the cnf file so you should be able to just enter through each.
+
+    Add the CA to the list of trusted root CAs (on Debian system)
+        - Create a subdirectory for your custom certificate authority
+            - # mkdir -p /usr/local/share/ca-certificates/homelabCA
+        - Create a new copy of the homelabCACert.pem -> homelabCACert.crt
+          Note: the ca update process will only work on pem format files with a crt extension
+        - Copy the new homelabCA cert to the new folder
+            - # cp homelabCACert.crt /usr/local/share/ca-certificates/homelabCA/
+            Note: Typically you would want to make sure everyone can read the file, but only root can edit
+        - Update the system's trusted CA certificates store
+            - # update-ca-certificates
+              Note: the command output should display 1 added, 0 removed, done.  (if 0 added, repeat previous steps)
+        - Verify that it was added to the trusted CA list
+            - # trust list
+              Note: Homelab Root CA should show as the last entry 
+        - This system should now trust certificates signed by the Homelab Root CA
+
+### Create Certificates for Additional Services
+
+    Typically you would perform these tasks on a machine/VM/container that would act as the host for the service.
+    Not having all your 'TLS eggs' in one basket is good for security and would be prudent for a production system.
+    Since this is a guide for creating a homelab for testing only, I'm going to perform the tasks on the DNS/CA system.
+    This approach will allow you to back up all this work in one spot so if you need to rebuild your homelab network, you won't have to recreate all the TLS certificates, you can just pull them from the DNS/CA.
+
+    
+
+
     
 

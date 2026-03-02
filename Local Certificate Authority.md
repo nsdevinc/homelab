@@ -134,14 +134,76 @@
               Note: Homelab Root CA should show as the last entry 
         - This system should now trust certificates signed by the Homelab Root CA
 
-### Create Certificates for Additional Services
+### Create Certificates for Services
 
     Typically you would perform these tasks on a machine/VM/container that would act as the host for the service.
     Not having all your 'TLS eggs' in one basket is good for security and would be prudent for a production system.
-    Since this is a guide for creating a homelab for testing only, I'm going to perform the tasks on the DNS/CA system.
+    Since this is a guide for creating a homelab for testing only, I'm going to perform the tasks on the DNS/CA system.  Also I want a TLS cert for the DNS server, so it makes sense to create the files in the same container.
     This approach will allow you to back up all this work in one spot so if you need to rebuild your homelab network, you won't have to recreate all the TLS certificates, you can just pull them from the DNS/CA.
 
-    
+    Create a directory to store the files
+        - Change to the /etc/ssl directory
+        - Create a directory for pihole
+            - # mkdir pihole
+        - Change into the /etc/ssl/pihole directory
+        - Create an extensions file
+            - # nano san-pihole.cnf (san is short for subject alternative name)
+        - File contents
+            [ req ]
+            default_bits = 2048
+            prompt = no
+            encrypt_key = no
+            default_md = sha256
+            distinguished_name = req_distinguished_name
+            req_extensions = v3_req
+
+            [ req_distinguished_name ]
+            C = <yours>
+            ST = <yours>
+            L = <yours>
+            O = Homelab
+            OU = IT Department
+            CN = pihole.homelab.local
+
+            [ v3_req ]
+            basicConstraints = CA:FALSE
+            keyUsage = nonRepudiation, digitalSignature, keyEncipherment, dataEncipherment
+            extendedKeyUsage = serverAuth, clientAuth
+            subjectAltName = @alt_names
+
+            [ alt_names]
+            DNS.1 = pihole.homelab.local
+            IP.1 = 192.168.1.2
+            IP.2 = 192.168.1.3
+        - Save the file
+          Note: I have included IP addresses so https will function via the DNS name or either IP.
+
+        - Create a new private key and CSR for the pihole service
+            -  # openssl genrsa -out pihole.key 4096
+
+        - Create new CSR for pihole
+            - # openssl req -new -key pihole.key -out pihole.csr -subj "/C=<yours>/ST=<yours>/L=<yours>/O=Homelab/CN=pihole.homelab.local" 
+
+        - Copy the san-pihole.cnf to /etc/homelabCA/
+            - # cp san-pihole.cnf /etc/homelabCA/
+
+        - Copy the pihole.csr to /etc/homelabCA/csr/
+            - # cp pihole.csr /etc/homelabCA/csr/
+
+        - Change to the /etc/homelabCA directory
+        - Sign the request (must include CA config file and san extensions file )
+            - # openssl ca -config ./openssl.cnf -in ./csr/pihole.csr -out ./certs/pihole.crt -extfile san-pihole.cnf -extensions v3_req
+
+        - You can cat out the contents of the new cert and verify that the SAN info is there
+        - Copy the certificate to the /etc/ssl/pihole directory
+            - # cp ./certs/pihole.crt /etc/ssl/pihole/
+        
+        - You now have all the files required to configure pihole to use https
+
+### Configure Pihole to use https
+
+
+
 
 
     

@@ -56,7 +56,11 @@
         - Verify that you can access the Pi-hole web admin interface
 
     Openssl is required to generate cryptographic keys
-        - Check if it is already installed with: openssl version        
+        - Check if it is already installed with: openssl version  
+    SSH service should be running
+        - # service sshd status
+        - Modify the sshd_config file to enable root login via password
+            - # nano /etc/sshd/sshd_config PermitRootLogin yes      
     I installed Tmux to allow multiple screens so I could work in more than one directory at a time
         - It's also beneficial if you need to visually compare files/output
     You will need to make sure SCP is installed to transfer files to different machines/containers/vms
@@ -201,6 +205,43 @@
         - You now have all the files required to configure pihole to use https
 
 ### Configure Pihole to use https
+
+    Refer to the pi-hole documentation on configuring TLS/SSL: https://docs.pi-hole.net/api/tls/
+
+    As stated in the pihole documentation, you can simply add the certificate that pihole creates during installation to the trusted certificate store that your browser is using to eliminate the Potential Security Risk notifications, but that won't enable other services on your network to trust it.  
+    While you are unlikely to access the pihole service from anything other than a browser, you may want to install additional services like an image repository, a Gitlab instance, or even a K3S cluster.  These services would need to communicate with each other and may require that those communications happen over TLS/SSL. That's why we're modifying pihole to use our custom ca certificate, as practice for implementing it for other services.
+
+    At the bottom of the TLS/SSL page you'll see instructions for using your own certificate.  
+        - Create the pem file that pihole requires: concatenate the cert file with the key file
+            - cd to the /etc/ssl/pihole/ directory
+            - # cat pihole.crt pihole.key > pihole.pem
+        - Copy that file to the /etc/pihole/ directory
+            - # cp pihole.pem /etc/pihole/
+        - Change to the /etc/pihole/ directory
+        - Edit the pihole.toml file
+            - nano pihole.toml
+            - Navigate to the[dns.domain] section and change name="lan" to name="local"
+            - Navigate to [webserver]
+            - Change domain to "pihole.local"
+            - Navigate to the [webserver.tls] section
+            - Change cert to: "/etc/pihole/pihole.pem"
+            - Save the file and exit
+        - Restart the pihole service
+            - # service pihole-FTL restart
+        - Check the service status to see if it restarted with no errors
+            - service pihole-FTL status
+        - You should be able to access the pihole service in a browser by using the IP address
+          Note: You will still get the Not secure message because we haven't imported the CA Root certificate into the client machine trusted store.
+        - Click on the Not secure message and view certificate details
+            - On the details tab go to Issuer - it should show Homelab
+            - Under the extensions section the Subject Alternative Name should show the DNS name and IPs
+        - On the clinet machine, use scp to copy the Homelab CA cert file to the client machine
+            - scp root@192.168.1.3:/etc/homelabCA/homelabCACert.crt homelabCACert.crt
+
+        - Add the Homelab Root CA to the trusted store of your client machine
+        - Add the Homelab Root CA certificate to the trusted store of your browser.
+
+
 
 
 
